@@ -1,6 +1,6 @@
 # Connect GPT to All Models with OpenRouter
 
-[فارسی](README.fa.md) · [Agent instructions](docs/chatgpt-agent-instructions.md) · [Remote deployment](docs/remote-deployment.md) · [Security](SECURITY.md)
+[فارسی](README.fa.md) · [Helios Custom GPT](agents/helios.md) · [Agent instructions](docs/chatgpt-agent-instructions.md) · [Remote deployment](docs/remote-deployment.md) · [Security](SECURITY.md)
 
 Use ChatGPT as an **orchestrator** for other AI models. A user can say “ask
 Gemini,” “review this with GLM,” “send this task to Kimi,” or “compare Claude
@@ -161,6 +161,17 @@ repository. Create your own tunnel and credentials. See
 
 On ChatGPT web, a saved GPT can also be brought into an existing conversation
 with `@GPT_NAME`, subject to current ChatGPT availability and workspace policy.
+
+### Ready-made Helios configuration
+
+The repository includes a complete, paste-ready definition for a Custom GPT
+named **Helios** in [`agents/helios.md`](agents/helios.md). The file contains its
+name, description, conversation starters, routing instructions, security rules,
+MCP requirements, verification prompts, and the exact steps for adding it to
+ChatGPT.
+
+The file itself does not install a GPT into a ChatGPT account. Users must add or
+edit Helios in the ChatGPT web GPT editor and attach their approved MCP app.
 
 ## MCP tools
 

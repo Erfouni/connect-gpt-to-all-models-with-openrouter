@@ -1,6 +1,6 @@
 # اتصال GPT به همهٔ مدل‌ها با OpenRouter
 
-[English](README.md) · [دستور آمادهٔ Agent](docs/chatgpt-agent-instructions.md) · [راه‌اندازی سرور](docs/remote-deployment.md) · [امنیت](SECURITY.md)
+[English](README.md) · [تنظیم کامل Helios](agents/helios.md) · [دستور آمادهٔ Agent](docs/chatgpt-agent-instructions.md) · [راه‌اندازی سرور](docs/remote-deployment.md) · [امنیت](SECURITY.md)
 
 این پروژه به شما اجازه می‌دهد از ChatGPT به‌عنوان **ارکستریتور مدل‌ها** استفاده
 کنید. مثلاً در همان گفتگو می‌گویید:
@@ -115,6 +115,17 @@ Tunnel و اطلاعات ورود خودش را بسازد. قبل از انتش
 6. مطمئن شوید پاسخ، مقدار واقعی `model_used` را نشان می‌دهد.
 
 در نسخهٔ وب می‌توان در یک چت موجود نیز با `@نام-GPT` آن را فراخوانی کرد.
+
+### Agent آماده با نام Helios
+
+فایل [`agents/helios.md`](agents/helios.md) تنظیم کامل یک Custom GPT با نام
+**Helios** را دارد: نام، توضیح، Conversation Starterها، Instructions، قوانین
+امنیتی، ابزارهای MCP موردنیاز و روش تست.
+
+وجود این فایل به معنی نصب خودکار GPT در حساب ChatGPT نیست. هر کاربر باید Helios
+را در GPT Editor بسازد یا ویرایش کند، App مربوط به MCP خودش را به آن اضافه کند
+و Instructions آماده را قرار دهد. امکان Apps در GPT به Plan و مجوزهای Workspace
+وابسته است.
 
 ## نکات امنیتی مهم
 
