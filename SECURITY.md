@@ -20,16 +20,27 @@ Only placeholders belong in `.env.example`.
 1. Keep the Python gateway on loopback. If that is impossible, use a strong
    `OPENROUTER_AGENT_TOKEN`, a private network, and a firewall.
 2. Never expose gateway port `3188` directly to the internet.
-3. Put the remote MCP endpoint behind HTTPS and authentication.
-4. Do not combine this public endpoint with general shell or filesystem access.
-5. Apply per-user rate limits, OpenRouter budget limits, and model allowlists if
+3. Keep `remote-mcp-server.mjs` on loopback and expose only port `3200` through
+   the HTTPS tunnel. Never tunnel the OpenRouter gateway on port `3188`.
+4. Use OAuth 2.1-compatible bearer tokens from an established identity provider
+   such as Auth0. The remote MCP must verify signature, issuer, audience,
+   expiration, scope, and (when configured) client ID.
+5. Keep OAuth protected-resource metadata enabled at
+   `/.well-known/oauth-protected-resource/mcp`. Test that unauthenticated MCP
+   requests return `401` plus a `WWW-Authenticate` challenge.
+6. Do not combine this public endpoint with general shell or filesystem access.
+7. Apply per-user rate limits, OpenRouter budget limits, and model allowlists if
    other people can use the GPT.
-6. Redact prompts and credentials from logs. Disable body logging at proxies.
-7. Send external models only the minimum required context.
-8. Treat model output and retrieved content as untrusted. It can contain prompt
+8. Redact prompts and credentials from logs. Disable body logging at proxies.
+9. Send external models only the minimum required context.
+10. Treat model output and retrieved content as untrusted. It can contain prompt
    injection or unsafe instructions.
-9. Require normal host-side confirmation before file changes, messages,
+11. Require normal host-side confirmation before file changes, messages,
    purchases, deletion, or other consequential actions.
+
+ngrok's agent authtoken belongs only in ngrok's local configuration. ngrok
+Basic Auth or browser-session OAuth is not a replacement for the MCP OAuth
+resource-server flow used by ChatGPT.
 
 ## Credential incident response
 

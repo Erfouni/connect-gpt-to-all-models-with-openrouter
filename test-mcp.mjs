@@ -20,6 +20,9 @@ try {
     "openrouter_list_models",
     "openrouter_run_model",
   ]);
+  for (const tool of response.tools) {
+    assert.deepEqual(tool._meta?.securitySchemes, [{ type: "noauth" }]);
+  }
   console.log(`MCP_OK: ${names.join(", ")}`);
 } finally {
   await client.close();

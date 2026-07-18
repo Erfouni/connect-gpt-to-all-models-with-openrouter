@@ -1,6 +1,6 @@
 # اتصال GPT به همهٔ مدل‌ها با OpenRouter
 
-[English](README.md) · [تنظیم کامل Helios](agents/helios.md) · [دستور آمادهٔ Agent](docs/chatgpt-agent-instructions.md) · [راه‌اندازی سرور](docs/remote-deployment.md) · [امنیت](SECURITY.md)
+[English](README.md) · [دستور آمادهٔ Agent](docs/chatgpt-agent-instructions.md) · [راه‌اندازی سرور](docs/remote-deployment.md) · [امنیت](SECURITY.md)
 
 این پروژه به شما اجازه می‌دهد از ChatGPT به‌عنوان **ارکستریتور مدل‌ها** استفاده
 کنید. مثلاً در همان گفتگو می‌گویید:
@@ -25,6 +25,9 @@ Aliasهای آماده شامل `gemini`، `gemini-flash`، `glm`، `kimi`، `cl
    مدل فراهم می‌کند.
 3. `docs/chatgpt-agent-instructions.md`: متن آماده‌ای که در Instructions ایجنت
    یا Custom GPT قرار می‌گیرد.
+4. `remote-mcp-server.mjs`: اتصال امن نسخهٔ وب است؛ فقط روی loopback اجرا
+   می‌شود و توکن OAuth صادرشده توسط Auth0 را قبل از هر درخواست MCP اعتبارسنجی
+   می‌کند.
 
 کلید API هیچ‌وقت به ChatGPT یا خروجی ابزار MCP فرستاده نمی‌شود.
 
@@ -76,9 +79,11 @@ POST http://127.0.0.1:3188/run
 در این حالت Gateway و کلید هر دو روی مک خصوصی باقی می‌مانند. برای این کار از
 بخش Bridge mode در فایل دستور Agent استفاده کنید.
 
-### روش سوم: سرور و نسخهٔ وب ChatGPT
+### روش سوم: سرور امن و نسخهٔ وب ChatGPT
 
-MCP را به Streamable HTTP تبدیل کنید:
+ابتدا در فایل `.env` آدرس عمومی و تنظیمات Auth0 را مطابق
+[`docs/remote-deployment.md`](docs/remote-deployment.md) وارد کنید، سپس MCP امن
+را اجرا کنید:
 
 ```bash
 npm run start:mcp:http
@@ -87,11 +92,18 @@ npm run start:mcp:http
 مسیر داخلی MCP برابر است با:
 
 ```text
-http://127.0.0.1:3100/mcp
+http://127.0.0.1:3200/mcp
 ```
 
-برای ChatGPT web باید این سرویس پشت HTTPS و احراز هویت امن قرار بگیرد. آدرسی که
-در ChatGPT ثبت می‌شود شبیه این است:
+این سرور امضای توکن، issuer، audience، زمان انقضا، scope و در صورت تنظیم‌شدن
+client ID را بررسی می‌کند. ngrok فقط باید پورت `3200` را تونل کند؛ پورت خصوصی
+`3188` را هرگز منتشر نکنید. پس از ساخت دامنهٔ ngrok خودتان اجرا کنید:
+
+```bash
+./scripts/start-secure-ngrok.sh
+```
+
+آدرسی که با Authentication روی **OAuth** در ChatGPT ثبت می‌شود شبیه این است:
 
 ```text
 https://YOUR_DOMAIN/mcp
@@ -99,7 +111,8 @@ https://YOUR_DOMAIN/mcp
 
 مسیر فایل مک مثل `/Users/name/...` قابل‌قبول نیست. داخل این ریپو هیچ دامنه یا
 کلید ngrok، توکن MCP، کلید OpenRouter یا مسیر شخصی وجود ندارد؛ هر کاربر باید
-Tunnel و اطلاعات ورود خودش را بسازد. قبل از انتشار سرویس، راهنمای
+دامنهٔ ngrok، حساب Auth0 و اطلاعات ورود خودش را بسازد. کلید ثابت یا صفحهٔ ورود
+مرورگری ngrok جای OAuth استاندارد MCP را نمی‌گیرد. قبل از انتشار سرویس، راهنمای
 [راه‌اندازی Remote](docs/remote-deployment.md) را بخوانید.
 
 ## ساخت Agent در ChatGPT
@@ -116,22 +129,12 @@ Tunnel و اطلاعات ورود خودش را بسازد. قبل از انتش
 
 در نسخهٔ وب می‌توان در یک چت موجود نیز با `@نام-GPT` آن را فراخوانی کرد.
 
-### Agent آماده با نام Helios
-
-فایل [`agents/helios.md`](agents/helios.md) تنظیم کامل یک Custom GPT با نام
-**Helios** را دارد: نام، توضیح، Conversation Starterها، Instructions، قوانین
-امنیتی، ابزارهای MCP موردنیاز و روش تست.
-
-وجود این فایل به معنی نصب خودکار GPT در حساب ChatGPT نیست. هر کاربر باید Helios
-را در GPT Editor بسازد یا ویرایش کند، App مربوط به MCP خودش را به آن اضافه کند
-و Instructions آماده را قرار دهد. امکان Apps در GPT به Plan و مجوزهای Workspace
-وابسته است.
-
 ## نکات امنیتی مهم
 
 - فایل واقعی `.env` هرگز نباید commit شود.
 - پورت `3188` را مستقیماً روی اینترنت باز نکنید.
-- فقط MCP را پشت TLS و احراز هویت امن منتشر کنید.
+- فقط MCP روی پورت `3200` را از طریق TLS منتشر کنید؛ سرور Remote به‌صورت پیش‌فرض
+  اتصال بدون توکن معتبر Auth0 را رد می‌کند.
 - یک MCP عمومی با دسترسی کامل Shell یا فایل‌ها نسازید.
 - فقط بخش لازم از گفتگو یا فایل‌ها را برای مدل خارجی بفرستید.
 - برای OpenRouter محدودیت هزینه و نرخ درخواست تنظیم کنید.

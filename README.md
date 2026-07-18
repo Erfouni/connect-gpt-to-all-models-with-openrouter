@@ -1,6 +1,6 @@
 # Connect GPT to All Models with OpenRouter
 
-[فارسی](README.fa.md) · [Helios Custom GPT](agents/helios.md) · [Agent instructions](docs/chatgpt-agent-instructions.md) · [Remote deployment](docs/remote-deployment.md) · [Security](SECURITY.md)
+[فارسی](README.fa.md) · [Agent instructions](docs/chatgpt-agent-instructions.md) · [Remote deployment](docs/remote-deployment.md) · [Security](SECURITY.md)
 
 Use ChatGPT as an **orchestrator** for other AI models. A user can say “ask
 Gemini,” “review this with GLM,” “send this task to Kimi,” or “compare Claude
@@ -21,19 +21,24 @@ can be resolved against OpenRouter's live model catalog.
 ```mermaid
 flowchart LR
     U["User in ChatGPT"] --> O["ChatGPT orchestrator"]
-    O --> M["MCP model router"]
+    O --> T["ngrok HTTPS tunnel"]
+    T --> M["OAuth-protected MCP model router"]
+    I["Auth0"] -->|"signed access token / JWKS"| M
     M --> G["Private OpenRouter gateway"]
     G --> R["OpenRouter API"]
     R --> A["Gemini / GLM / Kimi / Claude / Qwen / others"]
     A --> O
 ```
 
-The project has two small processes:
+The project keeps the credential boundary explicit:
 
 1. `server.py` — a credential-holding HTTP gateway. It binds to
    `127.0.0.1:3188` by default and talks to OpenRouter.
 2. `mcp-server.mjs` — a stdio MCP server with three tools. It calls the private
    gateway and never needs to expose the OpenRouter key to ChatGPT.
+3. `remote-mcp-server.mjs` — the optional ChatGPT-web transport. It binds only
+   to loopback, validates Auth0 OAuth access tokens, and exposes `/mcp` for an
+   HTTPS tunnel such as ngrok.
 
 ## Features
 
@@ -123,20 +128,32 @@ general filesystem or shell MCP publicly just to reach this gateway.
 
 ### 3. Protected server / ChatGPT web
 
-Convert the stdio MCP server to Streamable HTTP:
+For ChatGPT web, configure the Auth0 and public URL fields in `.env`, then start
+the authenticated Streamable HTTP server:
 
 ```bash
 npm run start:mcp:http
 ```
 
-It listens on port `3100`; the MCP path is:
+It listens only on loopback by default; the MCP path is:
 
 ```text
-http://127.0.0.1:3100/mcp
+http://127.0.0.1:3200/mcp
 ```
 
-Place this behind an authenticated HTTPS reverse proxy or secure tunnel. The
-URL registered in ChatGPT must be a real HTTPS URL ending in `/mcp`, for example:
+The server validates the token signature through Auth0 JWKS, plus issuer,
+audience, expiration, required scopes, and an optional client-ID allowlist. It
+also publishes OAuth protected-resource metadata for ChatGPT discovery. Tunnel
+only port `3200`; never tunnel the private gateway on `3188`.
+
+After configuring your own ngrok reserved domain and local ngrok authtoken, run:
+
+```bash
+./scripts/start-secure-ngrok.sh
+```
+
+The URL registered in ChatGPT must be the same HTTPS resource URL configured as
+`PUBLIC_MCP_URL` and `AUTH0_AUDIENCE`, for example:
 
 ```text
 https://mcp.example.com/mcp
@@ -144,14 +161,17 @@ https://mcp.example.com/mcp
 
 It is **not** a local path such as `/Users/name/project/start.sh`. No ngrok
 domain, authtoken, MCP token, API key, or personal path is included in this
-repository. Create your own tunnel and credentials. See
-[Remote deployment](docs/remote-deployment.md) before exposing anything.
+repository. Create your own Auth0 application/API, ngrok tunnel, and
+credentials. See [Remote deployment](docs/remote-deployment.md) before exposing
+anything. A static API key or ngrok browser login is not a substitute for the
+MCP OAuth flow expected by ChatGPT.
 
 ## ChatGPT / Custom GPT setup
 
 1. Get the local or protected remote MCP mode working first.
 2. In ChatGPT, connect the custom app/MCP endpoint allowed by your plan or
-   workspace. For server mode, enter `https://YOUR_DOMAIN/mcp`.
+   workspace. For server mode, enter `https://YOUR_DOMAIN/mcp` and select
+   **OAuth** authentication.
 3. Create a Custom GPT and enable the connected app, if that option is available
    for your account/workspace.
 4. Paste [the provided instructions](docs/chatgpt-agent-instructions.md) into the
@@ -161,17 +181,6 @@ repository. Create your own tunnel and credentials. See
 
 On ChatGPT web, a saved GPT can also be brought into an existing conversation
 with `@GPT_NAME`, subject to current ChatGPT availability and workspace policy.
-
-### Ready-made Helios configuration
-
-The repository includes a complete, paste-ready definition for a Custom GPT
-named **Helios** in [`agents/helios.md`](agents/helios.md). The file contains its
-name, description, conversation starters, routing instructions, security rules,
-MCP requirements, verification prompts, and the exact steps for adding it to
-ChatGPT.
-
-The file itself does not install a GPT into a ChatGPT account. Users must add or
-edit Helios in the ChatGPT web GPT editor and attach their approved MCP app.
 
 ## MCP tools
 
@@ -210,8 +219,10 @@ entry is selected.
 
 - `.env` is ignored by Git. Only `.env.example` belongs in the repository.
 - The gateway refuses a non-loopback bind unless `OPENROUTER_AGENT_TOKEN` is set.
-- Do not expose port `3188` to the internet. Expose only the MCP layer, behind
-  TLS and authentication.
+- The authenticated remote MCP also refuses a non-loopback bind. ngrok connects
+  locally to it and provides public TLS.
+- Do not expose port `3188` to the internet. Expose only port `3200` through the
+  tunnel after OAuth has been configured.
 - Do not publish a broad shell/filesystem MCP alongside this model router.
 - Send external models only the context required for the delegated task.
 - Set OpenRouter budget/rate limits and remember that `/compare` creates several
