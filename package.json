@@ -1,0 +1,42 @@
+{
+  "name": "connect-gpt-to-all-models-with-openrouter",
+  "version": "1.0.0",
+  "description": "Use ChatGPT as an orchestrator for Gemini, GLM, Kimi, Claude, Qwen, DeepSeek, and other OpenRouter models through MCP.",
+  "type": "module",
+  "main": "mcp-server.mjs",
+  "scripts": {
+    "start:gateway": "python3 server.py",
+    "start:mcp": "node mcp-server.mjs",
+    "start:mcp:http": "supergateway --stdio \"node mcp-server.mjs\" --outputTransport streamableHttp --streamableHttpPath /mcp --port 3100 --healthEndpoint /healthz --stateful --sessionTimeout 600000",
+    "test": "node test-mcp.mjs",
+    "test:python": "python3 -m unittest discover -s tests -p \"test_*.py\""
+  },
+  "keywords": [
+    "chatgpt",
+    "mcp",
+    "openrouter",
+    "gemini",
+    "glm",
+    "kimi",
+    "model-router",
+    "orchestrator"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Erfouni/connect-gpt-to-all-models-with-openrouter.git"
+  },
+  "homepage": "https://github.com/Erfouni/connect-gpt-to-all-models-with-openrouter#readme",
+  "bugs": {
+    "url": "https://github.com/Erfouni/connect-gpt-to-all-models-with-openrouter/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "supergateway": "^3.4.3",
+    "zod": "^4.4.3"
+  }
+}

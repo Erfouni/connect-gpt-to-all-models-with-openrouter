@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "openrouter-model-orchestrator": {
+      "command": "node",
+      "args": ["/absolute/path/to/connect-gpt-to-all-models-with-openrouter/mcp-server.mjs"],
+      "env": {
+        "OPENROUTER_AGENT_URL": "http://127.0.0.1:3188",
+        "OPENROUTER_AGENT_TOKEN": ""
+      }
+    }
+  }
+}
