@@ -23,3 +23,4 @@ jobs:
       - run: npm test
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
       - run: python3 -m py_compile server.py
+      - run: npm run audit:prod

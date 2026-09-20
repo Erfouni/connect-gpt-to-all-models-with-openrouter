@@ -9,7 +9,8 @@
     "start:mcp": "node mcp-server.mjs",
     "start:mcp:http": "node --env-file=.env remote-mcp-server.mjs",
     "test": "node test-mcp.mjs && node tests/test-remote-auth.mjs",
-    "test:python": "python3 -m unittest discover -s tests -p \"test_*.py\""
+    "test:python": "python3 -m unittest discover -s tests -p \"test_*.py\"",
+    "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "keywords": [
     "chatgpt",
