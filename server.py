@@ -252,24 +252,60 @@ def build_messages(data: dict[str, Any]) -> list[dict[str, Any]]:
     return messages
 
 
+def int_param(value: Any, name: str, default: int, minimum: int, maximum: int) -> int:
+    """A whole number, clamped into range. Anything else is the caller's mistake."""
+    if value is None:
+        return default
+    if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
+        raise GatewayError(f"{name} must be an integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise GatewayError(f"{name} must be an integer") from exc
+    return max(minimum, min(parsed, maximum))
+
+
+def float_param(value: Any, name: str, minimum: float, maximum: float) -> float:
+    """A number inside the range OpenRouter accepts (NaN and infinity never are)."""
+    if isinstance(value, bool):
+        raise GatewayError(f"{name} must be a number")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise GatewayError(f"{name} must be a number") from exc
+    if not minimum <= parsed <= maximum:
+        raise GatewayError(f"{name} must be between {minimum:g} and {maximum:g}")
+    return parsed
+
+
+def generation_options(data: dict[str, Any]) -> dict[str, Any]:
+    options: dict[str, Any] = {
+        "max_tokens": int_param(
+            data.get("max_tokens"), "max_tokens", MAX_OUTPUT_TOKENS, 1, MAX_OUTPUT_TOKENS
+        ),
+    }
+    if data.get("temperature") is not None:
+        options["temperature"] = float_param(data["temperature"], "temperature", 0, 2)
+    if data.get("top_p") is not None:
+        options["top_p"] = float_param(data["top_p"], "top_p", 0, 1)
+    if data.get("reasoning_effort") in {"low", "medium", "high", "xhigh"}:
+        options["reasoning"] = {"effort": data["reasoning_effort"]}
+    return options
+
+
 def run_model(data: dict[str, Any]) -> dict[str, Any]:
     requested = str(data.get("model", "")).strip()
+    # Validate the request before resolve_model, which may fetch the catalog.
+    messages = build_messages(data)
+    options = generation_options(data)
     resolved = resolve_model(requested)
-    max_tokens = int(data.get("max_tokens", MAX_OUTPUT_TOKENS))
-    max_tokens = max(1, min(max_tokens, MAX_OUTPUT_TOKENS))
 
     payload: dict[str, Any] = {
         "model": resolved,
-        "messages": build_messages(data),
-        "max_tokens": max_tokens,
+        "messages": messages,
         "stream": False,
+        **options,
     }
-    if data.get("temperature") is not None:
-        payload["temperature"] = float(data["temperature"])
-    if data.get("top_p") is not None:
-        payload["top_p"] = float(data["top_p"])
-    if data.get("reasoning_effort") in {"low", "medium", "high", "xhigh"}:
-        payload["reasoning"] = {"effort": data["reasoning_effort"]}
 
     response = openrouter_request("POST", "/chat/completions", payload)
     choices = response.get("choices") or []
@@ -294,6 +330,9 @@ def compare_models(data: dict[str, Any]) -> dict[str, Any]:
             "Too many models requested",
             details={"max_compare_models": MAX_COMPARE_MODELS},
         )
+    # One malformed option is one 400, not the same error once per model.
+    build_messages(data)
+    generation_options(data)
 
     results: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=len(requested_models)) as executor:
@@ -365,7 +404,10 @@ class Handler(BaseHTTPRequestHandler):
         return False
 
     def read_json(self) -> dict[str, Any]:
-        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as exc:
+            raise GatewayError("Content-Length must be an integer") from exc
         if length <= 0:
             raise GatewayError("JSON request body is required")
         if length > REQUEST_BODY_LIMIT:
@@ -396,7 +438,7 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/models":
                 query = urllib.parse.parse_qs(parsed.query)
                 search = (query.get("search") or [""])[0].lower().strip()
-                limit = min(max(int((query.get("limit") or ["50"])[0]), 1), 200)
+                limit = int_param((query.get("limit") or [None])[0], "limit", 50, 1, 200)
                 models = get_models()
                 if search:
                     models = [
