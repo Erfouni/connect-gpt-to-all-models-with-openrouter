@@ -160,7 +160,6 @@ function jsonRpcError(res, status, message) {
 export function createRemoteMcpApp(config, verifier = createAuth0Verifier(config)) {
   const app = express();
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "1mb" }));
   app.use((req, res, next) => {
     const hostname = hostnameFromHeader(req.headers.host ?? "");
     const allowed = new Set([config.publicHostname, "127.0.0.1", "localhost", "[::1]", "::1"]);
@@ -187,7 +186,8 @@ export function createRemoteMcpApp(config, verifier = createAuth0Verifier(config
   });
 
   app.use("/mcp", bearerAuth);
-  app.post("/mcp", async (req, res) => {
+  // Parse the body only for an authenticated caller on a known host.
+  app.post("/mcp", express.json({ limit: "1mb" }), async (req, res) => {
     const mcpServer = createOpenRouterMcpServer({
       authentication: "oauth",
       requiredScopes: config.requiredScopes,
