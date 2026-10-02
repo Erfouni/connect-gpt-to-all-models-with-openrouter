@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import http from "node:http";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -94,6 +95,40 @@ try {
     unauthenticated.headers.get("www-authenticate") ?? "",
     /resource_metadata="https:\/\/mcp\.example\.invalid\/\.well-known\/oauth-protected-resource\/mcp"/,
   );
+
+  // Bodies are read only after the Host check and the token check.
+  const unauthenticatedBadJson = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{not json",
+  });
+  assert.equal(unauthenticatedBadJson.status, 401);
+
+  const wrongHost = await new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: "127.0.0.1",
+        port: address.port,
+        path: "/mcp",
+        method: "POST",
+        headers: { Host: "attacker.example", "Content-Type": "application/json" },
+      },
+      (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      },
+    );
+    req.on("error", reject);
+    req.end("{not json");
+  });
+  assert.equal(wrongHost, 421);
+
+  const authenticatedBadJson = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer valid-test-token" },
+    body: "{not json",
+  });
+  assert.equal(authenticatedBadJson.status, 400);
 
   const transport = new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
     requestInit: { headers: { Authorization: "Bearer valid-test-token" } },
