@@ -32,8 +32,18 @@ npm test
 curl http://127.0.0.1:3188/health
 ```
 
-`npm test` checks only the MCP protocol and tool definitions. It does not make a
-paid OpenRouter request.
+`npm test` checks the local MCP protocol and tool definitions, plus the remote
+MCP server's OAuth token validation, authentication responses, and protected
+resource metadata. These checks do not make paid OpenRouter requests.
+
+Run the Python gateway tests separately:
+
+```bash
+npm run test:python
+```
+
+The `/health` request checks the gateway started in step 2; it does not invoke
+a model.
 
 ## Existing Mac MCP bridge
 
