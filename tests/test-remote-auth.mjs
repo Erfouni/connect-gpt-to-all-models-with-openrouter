@@ -36,6 +36,29 @@ assert.throws(
   /HTTPS/,
 );
 
+// MCP_HTTP_PORT must be the whole value, not a numeric prefix (#10).
+const portEnv = {
+  PUBLIC_MCP_URL: "https://mcp.example.invalid/mcp",
+  AUTH0_ISSUER: "https://tenant.example.invalid/",
+  AUTH0_AUDIENCE: "https://mcp.example.invalid/mcp",
+  AUTH0_JWKS_URL: "https://tenant.example.invalid/.well-known/jwks.json",
+  AUTH0_REQUIRED_SCOPES: "models:invoke",
+  MCP_HTTP_HOST: "127.0.0.1",
+};
+assert.equal(loadRemoteConfig({ ...portEnv }).port, 3200, "the default port");
+assert.equal(loadRemoteConfig({ ...portEnv, MCP_HTTP_PORT: "3200" }).port, 3200);
+assert.equal(loadRemoteConfig({ ...portEnv, MCP_HTTP_PORT: " 3200 " }).port, 3200, "surrounding whitespace is trimmed");
+assert.equal(loadRemoteConfig({ ...portEnv, MCP_HTTP_PORT: "+3200" }).port, 3200);
+assert.equal(loadRemoteConfig({ ...portEnv, MCP_HTTP_PORT: "1" }).port, 1);
+assert.equal(loadRemoteConfig({ ...portEnv, MCP_HTTP_PORT: "65535" }).port, 65535);
+for (const bad of ["3200junk", "3.5", "1e3", "0x10", "0", "65536", "-1", "", "  ", "٣٢٠٠"]) {
+  assert.throws(
+    () => loadRemoteConfig({ ...portEnv, MCP_HTTP_PORT: bad }),
+    /MCP_HTTP_PORT must be an integer from 1 to 65535/,
+    `MCP_HTTP_PORT=${JSON.stringify(bad)}`,
+  );
+}
+
 const { publicKey, privateKey } = await generateKeyPair("RS256");
 const jwk = await exportJWK(publicKey);
 jwk.kid = "test-key";

@@ -64,7 +64,10 @@ export function loadRemoteConfig(env = process.env) {
     throw new Error("MCP_HTTP_HOST must be loopback; expose it only through the HTTPS tunnel");
   }
 
-  const port = Number.parseInt(env.MCP_HTTP_PORT ?? "3200", 10);
+  // The whole value must be a decimal integer: Number.parseInt would read "3200junk",
+  // "3.5" and "1e3" as 3200, 3 and 1 and start on a port nobody asked for (#10).
+  const portText = String(env.MCP_HTTP_PORT ?? "3200").trim();
+  const port = /^\+?\d+$/.test(portText) ? Number(portText) : Number.NaN;
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("MCP_HTTP_PORT must be an integer from 1 to 65535");
   }
