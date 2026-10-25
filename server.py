@@ -276,7 +276,9 @@ def float_param(value: Any, name: str, minimum: float, maximum: float) -> float:
         raise GatewayError(f"{name} must be a number")
     try:
         parsed = float(value)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
+        # An integer larger than a float can hold (10**400 in JSON) raises
+        # OverflowError here; it is still a bad request, not a server fault.
         raise GatewayError(f"{name} must be a number") from exc
     if not minimum <= parsed <= maximum:
         raise GatewayError(f"{name} must be between {minimum:g} and {maximum:g}")
