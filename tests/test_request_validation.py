@@ -99,6 +99,34 @@ class RequestValidationTests(unittest.TestCase):
                 )
                 self.assert_rejected(status, body, mentions)
 
+    def test_run_rejects_a_reasoning_effort_that_is_not_a_known_value(self):
+        self.upstream_mock.side_effect = fake_completion
+        for value in (["high"], {"effort": "high"}, 2, True, "", "High", "hgih"):
+            with self.subTest(reasoning_effort=value):
+                status, body = self.post(
+                    "/run",
+                    {"model": "provider/model", "prompt": "hi", "reasoning_effort": value},
+                )
+                self.assert_rejected(status, body, "reasoning_effort")
+                for effort in ("low", "medium", "high", "xhigh"):
+                    self.assertIn(effort, body["error"])
+        self.upstream_mock.assert_not_called()
+
+    def test_every_known_reasoning_effort_is_passed_through(self):
+        self.upstream_mock.side_effect = fake_completion
+        for effort in ("low", "medium", "high", "xhigh", None):
+            with self.subTest(reasoning_effort=effort):
+                status, body = self.post(
+                    "/run",
+                    {"model": "provider/model", "prompt": "hi", "reasoning_effort": effort},
+                )
+                self.assertEqual(status, 200, body)
+                payload = self.upstream_mock.call_args.args[2]
+                if effort is None:
+                    self.assertNotIn("reasoning", payload)
+                else:
+                    self.assertEqual(payload["reasoning"], {"effort": effort})
+
     def test_bad_request_is_rejected_before_the_catalog_is_fetched(self):
         with patch.object(server, "get_models", side_effect=AssertionError("catalog fetched")):
             status, body = self.post(

@@ -293,8 +293,12 @@ def generation_options(data: dict[str, Any]) -> dict[str, Any]:
         options["temperature"] = float_param(data["temperature"], "temperature", 0, 2)
     if data.get("top_p") is not None:
         options["top_p"] = float_param(data["top_p"], "top_p", 0, 1)
-    if data.get("reasoning_effort") in {"low", "medium", "high", "xhigh"}:
-        options["reasoning"] = {"effort": data["reasoning_effort"]}
+    effort = data.get("reasoning_effort")
+    if effort is not None:
+        allowed = ("low", "medium", "high", "xhigh")
+        if not isinstance(effort, str) or effort not in allowed:
+            raise GatewayError("reasoning_effort must be one of: " + ", ".join(allowed))
+        options["reasoning"] = {"effort": effort}
     return options
 
 
