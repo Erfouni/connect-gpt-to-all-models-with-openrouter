@@ -90,7 +90,12 @@ def openrouter_request(
     request = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+            upstream = json.loads(response.read().decode("utf-8"))
+            if not isinstance(upstream, dict):
+                raise GatewayError(
+                    "OpenRouter returned an unexpected JSON value", status=502
+                )
+            return upstream
     except urllib.error.HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace")
         try:
