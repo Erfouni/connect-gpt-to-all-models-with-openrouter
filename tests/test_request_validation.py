@@ -89,8 +89,10 @@ class RequestValidationTests(unittest.TestCase):
             ({"temperature": 5}, "temperature"),
             ({"temperature": -0.1}, "temperature"),
             ({"temperature": float("nan")}, "temperature"),
+            ({"temperature": 10**400}, "temperature"),
             ({"top_p": 1.5}, "top_p"),
             ({"top_p": {}}, "top_p"),
+            ({"top_p": 10**400}, "top_p"),
         ]
         for extra, mentions in cases:
             with self.subTest(extra=extra):
@@ -98,6 +100,15 @@ class RequestValidationTests(unittest.TestCase):
                     "/run", {"model": "provider/model", "prompt": "hi", **extra}
                 )
                 self.assert_rejected(status, body, mentions)
+        self.upstream_mock.assert_not_called()
+
+    def test_float_param_rejects_an_overflowing_integer(self):
+        for name, value in (("temperature", 10**400), ("top_p", 10**400)):
+            with self.subTest(name=name):
+                with self.assertRaises(server.GatewayError) as caught:
+                    server.float_param(value, name, 0, 2)
+                self.assertEqual(caught.exception.status, 400)
+                self.assertIn(name, str(caught.exception))
 
     def test_run_rejects_a_reasoning_effort_that_is_not_a_known_value(self):
         self.upstream_mock.side_effect = fake_completion
@@ -142,6 +153,16 @@ class RequestValidationTests(unittest.TestCase):
             {"models": ["provider/a", "provider/b"], "prompt": "hi", "max_tokens": "lots"},
         )
         self.assert_rejected(status, body, "max_tokens")
+
+    def test_compare_rejects_an_overflowing_number_once(self):
+        for field in ("temperature", "top_p"):
+            with self.subTest(field=field):
+                status, body = self.post(
+                    "/compare",
+                    {"models": ["provider/a", "provider/b"], "prompt": "hi", field: 10**400},
+                )
+                self.assert_rejected(status, body, field)
+        self.upstream_mock.assert_not_called()
 
     def test_content_length_that_is_not_a_number(self):
         status, body = self.request("POST", "/run", b"{}", {"Content-Length": "abc"})
