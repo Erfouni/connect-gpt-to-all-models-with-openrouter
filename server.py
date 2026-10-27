@@ -115,6 +115,15 @@ def openrouter_request(
         raise GatewayError("OpenRouter returned invalid JSON", status=502) from exc
 
 
+def validate_catalog_model(item: Any) -> None:
+    if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"].strip():
+        raise GatewayError("OpenRouter model catalog contains an invalid model", 502)
+    try:
+        int(item.get("created") or 0)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise GatewayError("OpenRouter model catalog contains an invalid creation time", 502) from exc
+
+
 def get_models(force: bool = False) -> list[dict[str, Any]]:
     now = time.time()
     with _model_lock:
@@ -130,6 +139,9 @@ def get_models(force: bool = False) -> list[dict[str, Any]]:
     models = response.get("data")
     if not isinstance(models, list):
         raise GatewayError("OpenRouter model catalog response was invalid", 502)
+    # Validate the whole response before replacing a previously valid catalog.
+    for item in models:
+        validate_catalog_model(item)
 
     with _model_lock:
         _model_cache["models"] = models
@@ -371,6 +383,7 @@ def compare_models(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def public_model(item: dict[str, Any]) -> dict[str, Any]:
+    validate_catalog_model(item)
     return {
         "id": item.get("id"),
         "name": item.get("name"),
